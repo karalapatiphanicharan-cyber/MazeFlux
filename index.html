@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MazeFlux: Search Intelligence Simulator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="particle-container"></div>
+
+    <main id="app">
+        <header class="top-section">
+            <div class="logo-container">
+                <div class="animated-logo">
+                    <div class="pulse"></div>
+                    <div class="inner-pulse"></div>
+                </div>
+                <div class="title-group">
+                    <h1 class="glitch" data-text="MazeFlux">MazeFlux</h1>
+                    <p class="subtitle">Search Intelligence Simulator</p>
+                </div>
+            </div>
+        </header>
+
+        <section class="global-controls glass">
+            <button id="gen-both" class="btn primary-neon">Generate Both Mazes</button>
+            <button id="run-both" class="btn primary-neon">Run Both</button>
+            <button id="compare-results" class="btn secondary-neon">Compare Results</button>
+            <button id="reset-all" class="btn danger-neon">Reset All</button>
+            <div class="playback-controls">
+                <button id="pause-sim" class="icon-btn" title="Pause">⏸</button>
+                <button id="resume-sim" class="icon-btn" title="Resume">▶</button>
+            </div>
+            <button id="export-img" class="btn outline-neon">Export Results</button>
+            <button id="fullscreen-toggle" class="icon-btn" title="Fullscreen">⛶</button>
+            <button id="theme-toggle" class="icon-btn" title="Switch Theme">🌓</button>
+        </section>
+
+        <section class="simulation-grid">
+            <!-- Classical Panel -->
+            <div class="panel glass classical-panel">
+                <div class="panel-header">
+                    <h2>Classical Search</h2>
+                    <div class="difficulty-selector">
+                        <label>Difficulty:</label>
+                        <select id="classical-difficulty" class="neon-select">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <canvas id="classical-canvas"></canvas>
+                </div>
+
+                <div class="panel-controls">
+                    <button id="gen-classical" class="btn sm-neon">Generate Maze</button>
+                    <button id="run-classical" class="btn sm-neon">Run Classical</button>
+                    <div class="speed-control">
+                        <span>Speed</span>
+                        <input type="range" id="classical-speed" min="1" max="100" value="50">
+                    </div>
+                </div>
+
+                <div class="live-stats glass-inner">
+                    <div class="stat-item"><span>Time:</span> <span id="c-stat-time">0.0s</span></div>
+                    <div class="stat-item"><span>Nodes:</span> <span id="c-stat-nodes">0</span></div>
+                    <div class="stat-item"><span>Path:</span> <span id="c-stat-path">0</span></div>
+                    <div class="stat-item"><span>Status:</span> <span id="c-stat-status">Idle</span></div>
+                    <div class="progress-bar-container">
+                        <div id="c-progress" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="small-chart" id="classical-chart">
+                    <!-- Chart visualization placeholder -->
+                </div>
+            </div>
+
+            <!-- Quantum Panel -->
+            <div class="panel glass quantum-panel">
+                <div class="panel-header">
+                    <h2>Quantum-Inspired</h2>
+                    <div class="difficulty-selector">
+                        <label>Difficulty:</label>
+                        <select id="quantum-difficulty" class="neon-select">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <canvas id="quantum-canvas"></canvas>
+                </div>
+
+                <div class="panel-controls">
+                    <button id="gen-quantum" class="btn sm-neon">Generate Maze</button>
+                    <button id="run-quantum" class="btn sm-neon">Run Quantum</button>
+                    <div class="speed-control">
+                        <span>Speed</span>
+                        <input type="range" id="quantum-speed" min="1" max="100" value="50">
+                    </div>
+                </div>
+
+                <div class="live-stats glass-inner">
+                    <div class="stat-item"><span>Time:</span> <span id="q-stat-time">0.0s</span></div>
+                    <div class="stat-item"><span>Nodes:</span> <span id="q-stat-nodes">0</span></div>
+                    <div class="stat-item"><span>Path:</span> <span id="q-stat-path">0</span></div>
+                    <div class="stat-item"><span>Status:</span> <span id="q-stat-status">Idle</span></div>
+                    <div class="progress-bar-container">
+                        <div id="q-progress" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="small-chart" id="quantum-chart">
+                    <!-- Chart visualization placeholder -->
+                </div>
+            </div>
+        </section>
+
+        <section id="comparison-dashboard" class="comparison-overlay hidden">
+            <div class="comparison-card glass">
+                <h3>Research Comparison Results</h3>
+                <div class="comparison-grid">
+                    <div class="comparison-col">
+                        <h4>Classical</h4>
+                        <p id="comp-c-diff">Difficulty: -</p>
+                        <p id="comp-c-time">Time: -</p>
+                        <p id="comp-c-nodes">Nodes: -</p>
+                        <p id="comp-c-path">Path Length: -</p>
+                    </div>
+                    <div class="comparison-divider"></div>
+                    <div class="comparison-col">
+                        <h4>Quantum-Inspired</h4>
+                        <p id="comp-q-diff">Difficulty: -</p>
+                        <p id="comp-q-time">Time: -</p>
+                        <p id="comp-q-nodes">Nodes: -</p>
+                        <p id="comp-q-path">Path Length: -</p>
+                    </div>
+                </div>
+                <div class="winner-announcement">
+                    <span id="winner-text"></span>
+                    <div class="trophy">🏆</div>
+                </div>
+                <button id="close-comparison" class="btn primary-neon">Back to Simulator</button>
+            </div>
+        </section>
+
+        <section class="educational-section glass">
+            <button class="collapse-btn">Educational Insights <span class="arrow">▼</span></button>
+            <div class="collapsible-content">
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>Classical Search (BFS)</h3>
+                        <p>BFS explores neighbor nodes first, before moving to the next level neighbors. It guarantees the shortest path in an unweighted grid but can be slow and memory-intensive.</p>
+                        <p class="complexity">Complexity: <strong>O(N)</strong> where N is the number of nodes.</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>Quantum-Inspired Search</h3>
+                        <p>Simulates quantum superposition and parallel exploration. It evaluates multiple paths simultaneously, utilizing interference-like patterns to amplify the probability of finding the exit faster.</p>
+                        <p class="complexity">Complexity: <strong>O(√N)</strong> (Simulated Grover's Speedup).</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="winner-popup" class="popup hidden">
+        <div class="popup-content">
+            <h2 id="popup-winner-name"></h2>
+            <p>Simulation Complete!</p>
+            <div class="animated-trophy">🏆</div>
+            <button id="close-popup" class="btn sm-neon">Dismiss</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
