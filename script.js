@@ -1,13 +1,15 @@
 /**
  * MazeFlux: Search Intelligence Simulator
- * UI and Animation Controller
+ * Core Logic and Visualization Engine
+ *
+ * This file contains the implementation of the maze generation,
+ * search algorithms, and the main UI controller.
  */
 
-// --- Maze Engine and Algorithms ---
-// (Previously defined classes: Maze, ClassicalSearch, QuantumSearch)
-// For brevity, I'll assume they are available or prepend them if needed.
-// Since I'm overwriting the file, I must include EVERYTHING.
-
+/**
+ * Handles Maze Generation and Rendering on a Canvas.
+ * Uses Recursive Backtracking for generation.
+ */
 class Maze {
     constructor(canvasId, difficulty) {
         this.canvas = document.getElementById(canvasId);
@@ -45,14 +47,18 @@ class Maze {
         this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(1));
     }
 
-    generate() {
+    async generate() {
         this.initGrid();
+        this.isGenerating = true;
         const startX = 1;
         const startY = 1;
         this.grid[startY][startX] = 0;
 
         const stack = [[startX, startY]];
         const directions = [[0, 2], [0, -2], [2, 0], [-2, 0]];
+
+        // Animation speed based on complexity
+        const delay = this.difficulty === 'easy' ? 20 : (this.difficulty === 'medium' ? 5 : 1);
 
         while (stack.length > 0) {
             const [cx, cy] = stack[stack.length - 1];
@@ -72,14 +78,23 @@ class Maze {
                 this.grid[ny - (ny - cy) / 2][nx - (nx - cx) / 2] = 0;
                 this.grid[ny][nx] = 0;
                 stack.push([nx, ny]);
+
+                // Draw only the changed cells for performance
+                this.drawCell(nx - (nx - cx) / 2, ny - (ny - cy) / 2, '#05050a');
+                this.drawCell(nx, ny, '#05050a');
+                this.drawCell(nx, ny, 'rgba(0, 242, 255, 0.5)'); // Highlight current head
+
+                if (delay > 0) await new Promise(r => setTimeout(r, delay));
             } else {
-                stack.pop();
+                const [lx, ly] = stack.pop();
+                this.drawCell(lx, ly, '#05050a'); // Remove highlight
             }
         }
 
         this.grid[1][0] = 0;
         this.grid[this.rows - 2][this.cols - 1] = 0;
-        this.draw();
+        this.draw(); // Final full draw
+        this.isGenerating = false;
     }
 
     draw() {
@@ -107,6 +122,10 @@ class Maze {
     }
 }
 
+/**
+ * Visualizes Classical Breadth-First Search (BFS).
+ * Explores nodes layer by layer to guarantee the shortest path.
+ */
 class ClassicalSearch {
     constructor(maze, onUpdate) {
         this.maze = maze;
@@ -118,15 +137,21 @@ class ClassicalSearch {
         this.finished = false;
         this.foundExit = false;
         this.path = [];
-        this.startTime = null;
         this.elapsedTime = 0;
+        this.lastUpdateTime = null;
+    }
+
+    updateTimer() {
+        if (this.finished) return;
+        const now = Date.now();
+        if (this.lastUpdateTime) {
+            this.elapsedTime += (now - this.lastUpdateTime) / 1000;
+        }
+        this.lastUpdateTime = now;
     }
 
     step() {
         if (this.finished || this.queue.length === 0) return;
-
-        if (!this.startTime) this.startTime = Date.now();
-        this.elapsedTime = (Date.now() - this.startTime) / 1000;
 
         const current = this.queue.shift();
         const [cx, cy] = current;
@@ -186,8 +211,20 @@ class ClassicalSearch {
             this.maze.drawCell(x, y, '#ff3131');
         }
     }
+
+    drawVisited() {
+        this.visited.forEach(key => {
+            const [x, y] = key.split(',').map(Number);
+            this.maze.drawCell(x, y, 'rgba(255, 49, 49, 0.4)');
+        });
+    }
 }
 
+/**
+ * Visualizes a Quantum-Inspired Parallel Search.
+ * Simulates superposition by exploring all possible branches simultaneously.
+ * Uses neon particles to represent probability cloud/wavefunction.
+ */
 class QuantumSearch {
     constructor(maze, onUpdate) {
         this.maze = maze;
@@ -199,16 +236,22 @@ class QuantumSearch {
         this.finished = false;
         this.foundExit = false;
         this.path = [];
-        this.startTime = null;
         this.elapsedTime = 0;
+        this.lastUpdateTime = null;
         this.particles = [];
+    }
+
+    updateTimer() {
+        if (this.finished) return;
+        const now = Date.now();
+        if (this.lastUpdateTime) {
+            this.elapsedTime += (now - this.lastUpdateTime) / 1000;
+        }
+        this.lastUpdateTime = now;
     }
 
     step() {
         if (this.finished || this.frontiers.length === 0) return;
-
-        if (!this.startTime) this.startTime = Date.now();
-        this.elapsedTime = (Date.now() - this.startTime) / 1000;
 
         const nextFrontiers = [];
 
@@ -242,7 +285,6 @@ class QuantumSearch {
         }
 
         this.frontiers = nextFrontiers;
-        this.updateParticles();
 
         this.onUpdate({
             time: this.elapsedTime,
@@ -264,11 +306,13 @@ class QuantumSearch {
     }
 
     updateParticles() {
+        if (this.particles.length === 0) return;
+
         this.particles = this.particles.filter(p => p.life > 0);
         this.particles.forEach(p => {
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.05;
+            p.life -= 0.02;
             this.maze.ctx.fillStyle = `rgba(57, 255, 20, ${p.life})`;
             this.maze.ctx.fillRect(p.x, p.y, 2, 2);
         });
@@ -297,6 +341,13 @@ class QuantumSearch {
             this.maze.drawCell(x, y, '#39ff14');
         }
     }
+
+    drawVisited() {
+        this.visited.forEach(key => {
+            const [x, y] = key.split(',').map(Number);
+            this.maze.drawCell(x, y, 'rgba(57, 255, 20, 0.3)');
+        });
+    }
 }
 
 // --- Main App Logic ---
@@ -324,6 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
         time: document.getElementById('c-stat-time'),
         nodes: document.getElementById('c-stat-nodes'),
         path: document.getElementById('c-stat-path'),
+        eff: document.getElementById('c-stat-eff'),
         status: document.getElementById('c-stat-status'),
         progress: document.getElementById('c-progress')
     };
@@ -332,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         time: document.getElementById('q-stat-time'),
         nodes: document.getElementById('q-stat-nodes'),
         path: document.getElementById('q-stat-path'),
+        eff: document.getElementById('q-stat-eff'),
         status: document.getElementById('q-stat-status'),
         progress: document.getElementById('q-progress')
     };
@@ -341,41 +394,52 @@ document.addEventListener('DOMContentLoaded', () => {
     quantumMaze.generate();
 
     // Event Listeners
-    document.getElementById('gen-classical').addEventListener('click', () => {
+    document.getElementById('gen-classical').addEventListener('click', async () => {
+        if (classicalMaze.isGenerating) return;
         classicalMaze.difficulty = cDiffSelect.value;
         classicalMaze.resize();
-        classicalMaze.generate();
         resetStats('classical');
+        await classicalMaze.generate();
     });
 
-    document.getElementById('gen-quantum').addEventListener('click', () => {
+    document.getElementById('gen-quantum').addEventListener('click', async () => {
+        if (quantumMaze.isGenerating) return;
         quantumMaze.difficulty = qDiffSelect.value;
         quantumMaze.resize();
-        quantumMaze.generate();
         resetStats('quantum');
+        await quantumMaze.generate();
     });
 
-    document.getElementById('gen-both').addEventListener('click', () => {
+    document.getElementById('gen-both').addEventListener('click', async () => {
+        if (classicalMaze.isGenerating || quantumMaze.isGenerating) return;
         classicalMaze.difficulty = cDiffSelect.value;
         classicalMaze.resize();
-        classicalMaze.generate();
         quantumMaze.difficulty = qDiffSelect.value;
         quantumMaze.resize();
-        quantumMaze.generate();
         resetStats('both');
+        await Promise.all([
+            classicalMaze.generate(),
+            quantumMaze.generate()
+        ]);
     });
 
     document.getElementById('run-classical').addEventListener('click', () => {
+        if (classicalMaze.isGenerating) return;
+        if (classicalSim && !classicalSim.finished) return;
         startClassical();
         if (!animationId) startAnimationLoop();
     });
 
     document.getElementById('run-quantum').addEventListener('click', () => {
+        if (quantumMaze.isGenerating) return;
+        if (quantumSim && !quantumSim.finished) return;
         startQuantum();
         if (!animationId) startAnimationLoop();
     });
 
     document.getElementById('run-both').addEventListener('click', () => {
+        if (classicalMaze.isGenerating || quantumMaze.isGenerating) return;
+        if ((classicalSim && !classicalSim.finished) || (quantumSim && !quantumSim.finished)) return;
         startClassical();
         startQuantum();
         if (!animationId) startAnimationLoop();
@@ -385,7 +449,11 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
-    document.getElementById('pause-sim').addEventListener('click', () => isPaused = true);
+    document.getElementById('pause-sim').addEventListener('click', () => {
+        isPaused = true;
+        if (classicalSim) classicalSim.lastUpdateTime = null;
+        if (quantumSim) quantumSim.lastUpdateTime = null;
+    });
     document.getElementById('resume-sim').addEventListener('click', () => isPaused = false);
 
     document.getElementById('compare-results').addEventListener('click', () => {
@@ -407,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
+            e.preventDefault();
             isPaused = !isPaused;
         } else if (e.code === 'KeyG') {
             document.getElementById('gen-both').click();
@@ -425,43 +494,106 @@ document.addEventListener('DOMContentLoaded', () => {
             cStats.time.innerText = '0.0s';
             cStats.nodes.innerText = '0';
             cStats.path.innerText = '0';
+            cStats.eff.innerText = '0%';
             cStats.status.innerText = 'Idle';
             cStats.progress.style.width = '0%';
+            document.getElementById('classical-chart').innerHTML = '';
             classicalSim = null;
         }
         if (side === 'quantum' || side === 'both') {
             qStats.time.innerText = '0.0s';
             qStats.nodes.innerText = '0';
             qStats.path.innerText = '0';
+            qStats.eff.innerText = '0%';
             qStats.status.innerText = 'Idle';
             qStats.progress.style.width = '0%';
+            document.getElementById('quantum-chart').innerHTML = '';
             quantumSim = null;
         }
     }
 
     function startClassical() {
         classicalMaze.draw(); // Clear previous marks
+        const totalPathNodes = classicalMaze.grid.flat().filter(cell => cell === 0).length;
         classicalSim = new ClassicalSearch(classicalMaze, (data) => {
             cStats.time.innerText = data.time.toFixed(1) + 's';
             cStats.nodes.innerText = data.nodes;
-            if (data.pathLength) cStats.path.innerText = data.pathLength;
+            let efficiency = 0;
+            if (data.pathLength) {
+                cStats.path.innerText = data.pathLength;
+                efficiency = (data.pathLength / data.nodes) * 100;
+                cStats.eff.innerText = efficiency.toFixed(1) + '%';
+            }
             cStats.status.innerText = data.status;
 
-            const total = (classicalMaze.cols * classicalMaze.rows) / 2;
-            cStats.progress.style.width = Math.min(100, (data.nodes / total) * 100) + '%';
+            cStats.progress.style.width = Math.min(100, (data.nodes / totalPathNodes) * 100) + '%';
+
+            updateChart('classical-chart', {
+                time: data.time,
+                nodes: data.nodes,
+                efficiency: efficiency
+            }, classicalMaze.difficulty);
         });
     }
 
     function startQuantum() {
         quantumMaze.draw(); // Clear previous marks
+        const totalPathNodes = quantumMaze.grid.flat().filter(cell => cell === 0).length;
         quantumSim = new QuantumSearch(quantumMaze, (data) => {
             qStats.time.innerText = data.time.toFixed(1) + 's';
             qStats.nodes.innerText = data.nodes;
-            if (data.pathLength) qStats.path.innerText = data.pathLength;
+            let efficiency = 0;
+            if (data.pathLength) {
+                qStats.path.innerText = data.pathLength;
+                efficiency = (data.pathLength / data.nodes) * 100;
+                qStats.eff.innerText = efficiency.toFixed(1) + '%';
+            }
             qStats.status.innerText = data.status;
 
-            const total = (quantumMaze.cols * quantumMaze.rows) / 2;
-            qStats.progress.style.width = Math.min(100, (data.nodes / total) * 100) + '%';
+            qStats.progress.style.width = Math.min(100, (data.nodes / totalPathNodes) * 100) + '%';
+
+            updateChart('quantum-chart', {
+                time: data.time,
+                nodes: data.nodes,
+                efficiency: efficiency
+            }, quantumMaze.difficulty);
+        });
+    }
+
+    function updateChart(containerId, stats, difficulty) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = ''; // Clear existing bars
+
+        // Max values for scaling based on difficulty
+        const limits = {
+            easy: { nodes: 100, time: 5 },
+            medium: { nodes: 400, time: 15 },
+            hard: { nodes: 1600, time: 60 }
+        };
+        const limit = limits[difficulty];
+
+        const metrics = [
+            { label: 'Time', value: stats.time, max: limit.time },
+            { label: 'Nodes', value: stats.nodes, max: limit.nodes },
+            { label: 'Eff', value: stats.efficiency || 0, max: 100 }
+        ];
+
+        metrics.forEach(m => {
+            const barContainer = document.createElement('div');
+            barContainer.className = 'chart-bar-container';
+
+            const label = document.createElement('div');
+            label.className = 'chart-label';
+            label.innerText = m.label;
+
+            const bar = document.createElement('div');
+            bar.className = 'chart-bar';
+            const percentage = Math.min(100, (m.value / m.max) * 100);
+            bar.style.height = percentage + '%';
+
+            barContainer.appendChild(label);
+            barContainer.appendChild(bar);
+            container.appendChild(barContainer);
         });
     }
 
@@ -471,6 +603,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function startAnimationLoop() {
         function animate() {
             if (!isPaused) {
+                // Update Timers
+                if (classicalSim && !classicalSim.finished) classicalSim.updateTimer();
+                if (quantumSim && !quantumSim.finished) quantumSim.updateTimer();
+
+                // Smooth Particle Updates (Independent of search speed)
+                if (quantumSim && !quantumSim.finished) {
+                    quantumSim.updateParticles();
+                }
+
                 // Classical Speed Control
                 const cSpeed = parseInt(cSpeedRange.value);
                 const cInterval = Math.max(1, Math.floor(100 / cSpeed));
@@ -523,11 +664,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('comp-c-time').innerText = `Time: ${classicalSim.elapsedTime.toFixed(2)}s`;
         document.getElementById('comp-c-nodes').innerText = `Nodes: ${classicalSim.exploredCount}`;
         document.getElementById('comp-c-path').innerText = `Path Length: ${classicalSim.path.length}`;
+        const cEff = (classicalSim.path.length / classicalSim.exploredCount) * 100;
+        document.getElementById('comp-c-eff').innerText = `Efficiency: ${cEff.toFixed(1)}%`;
 
         document.getElementById('comp-q-diff').innerText = `Difficulty: ${quantumMaze.difficulty.toUpperCase()}`;
         document.getElementById('comp-q-time').innerText = `Time: ${quantumSim.elapsedTime.toFixed(2)}s`;
         document.getElementById('comp-q-nodes').innerText = `Nodes: ${quantumSim.exploredCount}`;
         document.getElementById('comp-q-path').innerText = `Path Length: ${quantumSim.path.length}`;
+        const qEff = (quantumSim.path.length / quantumSim.exploredCount) * 100;
+        document.getElementById('comp-q-eff').innerText = `Efficiency: ${qEff.toFixed(1)}%`;
 
         const winnerText = document.getElementById('winner-text');
         if (quantumSim.elapsedTime < classicalSim.elapsedTime) {
@@ -595,6 +740,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('theme-toggle').addEventListener('click', () => {
         const current = document.body.getAttribute('data-theme');
         document.body.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+    });
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+        classicalMaze.resize();
+        classicalMaze.draw();
+        if (classicalSim) {
+            classicalSim.drawVisited();
+            if (classicalSim.finished) classicalSim.drawPath();
+        }
+
+        quantumMaze.resize();
+        quantumMaze.draw();
+        if (quantumSim) {
+            quantumSim.drawVisited();
+            if (quantumSim.finished) quantumSim.drawPath();
+        }
     });
 
     // Background Particles
