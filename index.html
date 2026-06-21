@@ -15,10 +15,19 @@
     <main id="app">
         <header class="top-section">
             <div class="logo-container">
-                <div class="animated-logo">
-                    <div class="pulse"></div>
-                    <div class="inner-pulse"></div>
-                </div>
+                <svg class="main-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:var(--neon-blue);stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:var(--neon-purple);stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <path class="logo-maze-path" d="M20 20 H80 V80 H20 V40 H60 V60 H40" fill="none" stroke="url(#logo-grad)" stroke-width="4" stroke-linecap="round" />
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--neon-blue)" stroke-width="1" stroke-dasharray="5 5" opacity="0.5" />
+                    <circle cx="40" cy="60" r="4" fill="var(--neon-green)">
+                        <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                </svg>
                 <div class="title-group">
                     <h1 class="glitch" data-text="MazeFlux">MazeFlux</h1>
                     <p class="subtitle">Search Intelligence Simulator</p>
@@ -26,18 +35,18 @@
             </div>
         </header>
 
-        <section class="global-controls glass">
-            <button id="gen-both" class="btn primary-neon">Generate Both Mazes</button>
-            <button id="run-both" class="btn primary-neon">Run Both</button>
-            <button id="compare-results" class="btn secondary-neon">Compare Results</button>
-            <button id="reset-all" class="btn danger-neon">Reset All</button>
-            <div class="playback-controls">
-                <button id="pause-sim" class="icon-btn" title="Pause">⏸</button>
-                <button id="resume-sim" class="icon-btn" title="Resume">▶</button>
+        <section class="global-controls glass" aria-label="Global Controls">
+            <button id="gen-both" class="btn primary-neon" aria-label="Generate Mazes for both panels">Generate Both Mazes</button>
+            <button id="run-both" class="btn primary-neon" aria-label="Run simulations for both panels">Run Both</button>
+            <button id="compare-results" class="btn secondary-neon" aria-label="Compare results of simulations">Compare Results</button>
+            <button id="reset-all" class="btn danger-neon" aria-label="Reset all simulations and mazes">Reset All</button>
+            <div class="playback-controls" role="group" aria-label="Playback controls">
+                <button id="pause-sim" class="icon-btn" title="Pause" aria-label="Pause simulations">⏸</button>
+                <button id="resume-sim" class="icon-btn" title="Resume" aria-label="Resume simulations">▶</button>
             </div>
-            <button id="export-img" class="btn outline-neon">Export Results</button>
-            <button id="fullscreen-toggle" class="icon-btn" title="Fullscreen">⛶</button>
-            <button id="theme-toggle" class="icon-btn" title="Switch Theme">🌓</button>
+            <button id="export-img" class="btn outline-neon" aria-label="Export results as image">Export Results</button>
+            <button id="fullscreen-toggle" class="icon-btn" title="Fullscreen" aria-label="Toggle fullscreen mode">⛶</button>
+            <button id="theme-toggle" class="icon-btn" title="Switch Theme" aria-label="Switch between light and dark theme">🌓</button>
         </section>
 
         <section class="simulation-grid">
@@ -47,7 +56,7 @@
                     <h2>Classical Search</h2>
                     <div class="difficulty-selector">
                         <label>Difficulty:</label>
-                        <select id="classical-difficulty" class="neon-select">
+                        <select id="classical-difficulty" class="neon-select" aria-label="Classical Search Difficulty">
                             <option value="easy">Easy</option>
                             <option value="medium" selected>Medium</option>
                             <option value="hard">Hard</option>
@@ -90,7 +99,7 @@
                     <h2>Quantum-Inspired</h2>
                     <div class="difficulty-selector">
                         <label>Difficulty:</label>
-                        <select id="quantum-difficulty" class="neon-select">
+                        <select id="quantum-difficulty" class="neon-select" aria-label="Quantum-Inspired Search Difficulty">
                             <option value="easy">Easy</option>
                             <option value="medium" selected>Medium</option>
                             <option value="hard">Hard</option>
@@ -130,31 +139,39 @@
 
         <section id="comparison-dashboard" class="comparison-overlay hidden">
             <div class="comparison-card glass">
-                <h3>Research Comparison Results</h3>
+                <div class="modal-header">
+                    <div class="trophy-wrap">🏆</div>
+                    <h2 id="winner-title">Simulation Complete</h2>
+                </div>
+
                 <div class="comparison-grid">
-                    <div class="comparison-col">
+                    <div class="comparison-col classical-res">
                         <h4>Classical</h4>
-                        <p id="comp-c-diff">Difficulty: -</p>
-                        <p id="comp-c-time">Time: -</p>
-                        <p id="comp-c-nodes">Nodes: -</p>
-                        <p id="comp-c-path">Path Length: -</p>
-                        <p id="comp-c-eff">Efficiency: -</p>
+                        <div class="res-item"><span class="label">Time</span><span id="comp-c-time" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Nodes</span><span id="comp-c-nodes" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Path</span><span id="comp-c-path" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Efficiency</span><span id="comp-c-eff" class="val">-</span></div>
                     </div>
+
                     <div class="comparison-divider"></div>
-                    <div class="comparison-col">
+
+                    <div class="comparison-col quantum-res">
                         <h4>Quantum-Inspired</h4>
-                        <p id="comp-q-diff">Difficulty: -</p>
-                        <p id="comp-q-time">Time: -</p>
-                        <p id="comp-q-nodes">Nodes: -</p>
-                        <p id="comp-q-path">Path Length: -</p>
-                        <p id="comp-q-eff">Efficiency: -</p>
+                        <div class="res-item"><span class="label">Time</span><span id="comp-q-time" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Nodes</span><span id="comp-q-nodes" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Path</span><span id="comp-q-path" class="val">-</span></div>
+                        <div class="res-item"><span class="label">Efficiency</span><span id="comp-q-eff" class="val">-</span></div>
                     </div>
                 </div>
-                <div class="winner-announcement">
+
+                <div class="winner-ribbon">
                     <span id="winner-text"></span>
-                    <div class="trophy">🏆</div>
                 </div>
-                <button id="close-comparison" class="btn primary-neon">Back to Simulator</button>
+
+                <div class="modal-footer">
+                    <button id="close-comparison" class="btn primary-neon">Resume Research</button>
+                    <button id="export-img-modal" class="btn outline-neon">Download Report</button>
+                </div>
             </div>
         </section>
 
@@ -176,15 +193,6 @@
             </div>
         </section>
     </main>
-
-    <div id="winner-popup" class="popup hidden">
-        <div class="popup-content">
-            <h2 id="popup-winner-name"></h2>
-            <p>Simulation Complete!</p>
-            <div class="animated-trophy">🏆</div>
-            <button id="close-popup" class="btn sm-neon">Dismiss</button>
-        </div>
-    </div>
 
     <script src="script.js"></script>
 </body>

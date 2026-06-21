@@ -47,27 +47,33 @@ class Maze {
         this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(1));
     }
 
-    async generate() {
-        this.initGrid();
-        this.isGenerating = true;
-        const startX = 1;
-        const startY = 1;
-        this.grid[startY][startX] = 0;
+    generate() {
+        return new Promise(resolve => {
+            this.initGrid();
+            this.isGenerating = true;
+            const startX = 1;
+            const startY = 1;
+            this.grid[startY][startX] = 0;
 
-        const stack = [[startX, startY]];
-        const directions = [[0, 2], [0, -2], [2, 0], [-2, 0]];
+            const stack = [[startX, startY]];
+            const directions = [[0, 2], [0, -2], [2, 0], [-2, 0]];
 
-        // Animation speed based on complexity
-        const delay = this.difficulty === 'easy' ? 20 : (this.difficulty === 'medium' ? 5 : 1);
+            const step = () => {
+                if (stack.length === 0) {
+                    this.grid[1][0] = 0;
+                    this.grid[this.rows - 2][this.cols - 1] = 0;
+                    this.draw();
+                    this.isGenerating = false;
+                    resolve();
+                    return;
+                }
 
-        while (stack.length > 0) {
             const [cx, cy] = stack[stack.length - 1];
             const neighbors = [];
 
             for (const [dx, dy] of directions) {
                 const nx = cx + dx;
                 const ny = cy + dy;
-
                 if (nx > 0 && nx < this.cols - 1 && ny > 0 && ny < this.rows - 1 && this.grid[ny][nx] === 1) {
                     neighbors.push([nx, ny]);
                 }
@@ -75,26 +81,49 @@ class Maze {
 
             if (neighbors.length > 0) {
                 const [nx, ny] = neighbors[Math.floor(Math.random() * neighbors.length)];
-                this.grid[ny - (ny - cy) / 2][nx - (nx - cx) / 2] = 0;
+                this.grid[cy + (ny - cy) / 2][cx + (nx - cx) / 2] = 0;
                 this.grid[ny][nx] = 0;
                 stack.push([nx, ny]);
 
-                // Draw only the changed cells for performance
-                this.drawCell(nx - (nx - cx) / 2, ny - (ny - cy) / 2, '#05050a');
+                this.drawCell(cx + (nx - cx) / 2, cy + (ny - cy) / 2, '#05050a');
                 this.drawCell(nx, ny, '#05050a');
-                this.drawCell(nx, ny, 'rgba(0, 242, 255, 0.5)'); // Highlight current head
-
-                if (delay > 0) await new Promise(r => setTimeout(r, delay));
+                this.drawCell(nx, ny, 'rgba(0, 242, 255, 0.5)');
             } else {
                 const [lx, ly] = stack.pop();
-                this.drawCell(lx, ly, '#05050a'); // Remove highlight
+                this.drawCell(lx, ly, '#05050a');
             }
-        }
 
-        this.grid[1][0] = 0;
-        this.grid[this.rows - 2][this.cols - 1] = 0;
-        this.draw(); // Final full draw
-        this.isGenerating = false;
+            // High speed generation: process multiple steps per frame for hard difficulty
+            if (this.difficulty === 'hard') {
+                for(let i=0; i<10; i++) {
+                    if (stack.length === 0) break;
+                    const [ccx, ccy] = stack[stack.length - 1];
+                    const nns = [];
+                    for (const [dx, dy] of directions) {
+                        const nx = ccx + dx;
+                        const ny = ccy + dy;
+                        if (nx > 0 && nx < this.cols - 1 && ny > 0 && ny < this.rows - 1 && this.grid[ny][nx] === 1) {
+                            nns.push([nx, ny]);
+                        }
+                    }
+                    if (nns.length > 0) {
+                        const [nx, ny] = nns[Math.floor(Math.random() * nns.length)];
+                        this.grid[ccy + (ny - ccy) / 2][ccx + (nx - ccx) / 2] = 0;
+                        this.grid[ny][nx] = 0;
+                        stack.push([nx, ny]);
+                        this.drawCell(ccx + (nx - ccx) / 2, ccy + (ny - ccy) / 2, '#05050a');
+                        this.drawCell(nx, ny, '#05050a');
+                    } else {
+                        stack.pop();
+                    }
+                }
+            }
+
+                requestAnimationFrame(step);
+            };
+
+            requestAnimationFrame(step);
+        });
     }
 
     draw() {
@@ -259,7 +288,12 @@ class QuantumSearch {
             const [cx, cy] = current;
             this.exploredCount++;
 
-            this.maze.drawCell(cx, cy, 'rgba(57, 255, 20, 0.3)');
+            // Use a pulse effect for the search front
+            this.maze.ctx.shadowBlur = 15;
+            this.maze.ctx.shadowColor = 'var(--neon-green)';
+            this.maze.drawCell(cx, cy, 'rgba(57, 255, 20, 0.4)');
+            this.maze.ctx.shadowBlur = 0;
+
             this.addParticles(cx, cy);
 
             if (cx === this.maze.cols - 1 && cy === this.maze.rows - 2) {
@@ -294,13 +328,16 @@ class QuantumSearch {
     }
 
     addParticles(x, y) {
-        for (let i = 0; i < 3; i++) {
+        // Reduced particle count for cleaner look, added size and trail
+        for (let i = 0; i < 2; i++) {
             this.particles.push({
-                x: x * this.maze.cellSize + Math.random() * this.maze.cellSize,
-                y: y * this.maze.cellSize + Math.random() * this.maze.cellSize,
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
-                life: 1.0
+                x: (x + 0.5) * this.maze.cellSize,
+                y: (y + 0.5) * this.maze.cellSize,
+                vx: (Math.random() - 0.5) * 1.2,
+                vy: (Math.random() - 0.5) * 1.2,
+                size: Math.random() * 2 + 1,
+                life: 1.0,
+                trail: []
             });
         }
     }
@@ -310,11 +347,29 @@ class QuantumSearch {
 
         this.particles = this.particles.filter(p => p.life > 0);
         this.particles.forEach(p => {
+            // Add current pos to trail
+            p.trail.push({x: p.x, y: p.y});
+            if (p.trail.length > 5) p.trail.shift();
+
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.02;
+            p.life -= 0.015;
+
+            // Draw Trail
+            this.maze.ctx.beginPath();
+            this.maze.ctx.strokeStyle = `rgba(57, 255, 20, ${p.life * 0.3})`;
+            this.maze.ctx.lineWidth = p.size;
+            if (p.trail.length > 0) {
+                this.maze.ctx.moveTo(p.trail[0].x, p.trail[0].y);
+                for(let i=1; i<p.trail.length; i++) {
+                    this.maze.ctx.lineTo(p.trail[i].x, p.trail[i].y);
+                }
+                this.maze.ctx.stroke();
+            }
+
+            // Draw Head
             this.maze.ctx.fillStyle = `rgba(57, 255, 20, ${p.life})`;
-            this.maze.ctx.fillRect(p.x, p.y, 2, 2);
+            this.maze.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
         });
     }
 
@@ -464,11 +519,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('comparison-dashboard').classList.add('hidden');
     });
 
-    document.getElementById('close-popup').addEventListener('click', () => {
-        document.getElementById('winner-popup').classList.add('hidden');
+    document.getElementById('export-img').addEventListener('click', () => {
+        exportAsImage();
     });
 
-    document.getElementById('export-img').addEventListener('click', () => {
+    document.getElementById('export-img-modal').addEventListener('click', () => {
         exportAsImage();
     });
 
@@ -562,38 +617,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateChart(containerId, stats, difficulty) {
         const container = document.getElementById(containerId);
-        container.innerHTML = ''; // Clear existing bars
-
-        // Max values for scaling based on difficulty
-        const limits = {
-            easy: { nodes: 100, time: 5 },
-            medium: { nodes: 400, time: 15 },
-            hard: { nodes: 1600, time: 60 }
-        };
-        const limit = limits[difficulty];
+        let bars = container.querySelectorAll('.chart-bar');
+        let labels = container.querySelectorAll('.chart-value');
 
         const metrics = [
-            { label: 'Time', value: stats.time, max: limit.time },
-            { label: 'Nodes', value: stats.nodes, max: limit.nodes },
-            { label: 'Eff', value: stats.efficiency || 0, max: 100 }
+            { label: 'Time', value: stats.time, unit: 's' },
+            { label: 'Nodes', value: stats.nodes, unit: '' },
+            { label: 'Eff', value: stats.efficiency || 0, unit: '%' }
         ];
 
-        metrics.forEach(m => {
-            const barContainer = document.createElement('div');
-            barContainer.className = 'chart-bar-container';
+        // Dynamic max scaling
+        const maxTime = Math.max(5, stats.time * 1.2);
+        const maxNodes = Math.max(100, stats.nodes * 1.2);
+        const limits = [maxTime, maxNodes, 100];
 
-            const label = document.createElement('div');
-            label.className = 'chart-label';
-            label.innerText = m.label;
+        if (bars.length === 0) {
+            container.innerHTML = '';
+            metrics.forEach((m, i) => {
+                const barContainer = document.createElement('div');
+                barContainer.className = 'chart-bar-container';
 
-            const bar = document.createElement('div');
-            bar.className = 'chart-bar';
-            const percentage = Math.min(100, (m.value / m.max) * 100);
-            bar.style.height = percentage + '%';
+                const label = document.createElement('div');
+                label.className = 'chart-label';
+                label.innerText = m.label;
 
-            barContainer.appendChild(label);
-            barContainer.appendChild(bar);
-            container.appendChild(barContainer);
+                const value = document.createElement('div');
+                value.className = 'chart-value';
+                value.innerText = '0';
+
+                const barWrap = document.createElement('div');
+                barWrap.className = 'chart-bar-wrap';
+
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.height = '0%';
+
+                barWrap.appendChild(bar);
+                barContainer.appendChild(label);
+                barContainer.appendChild(barWrap);
+                barContainer.appendChild(value);
+                container.appendChild(barContainer);
+            });
+            bars = container.querySelectorAll('.chart-bar');
+            labels = container.querySelectorAll('.chart-value');
+        }
+
+        metrics.forEach((m, i) => {
+            const percentage = Math.min(100, (m.value / limits[i]) * 100);
+            bars[i].style.height = percentage + '%';
+            labels[i].innerText = m.value.toFixed(m.unit === 's' ? 1 : 0) + m.unit;
         });
     }
 
@@ -660,34 +732,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const dashboard = document.getElementById('comparison-dashboard');
         dashboard.classList.remove('hidden');
 
-        document.getElementById('comp-c-diff').innerText = `Difficulty: ${classicalMaze.difficulty.toUpperCase()}`;
-        document.getElementById('comp-c-time').innerText = `Time: ${classicalSim.elapsedTime.toFixed(2)}s`;
-        document.getElementById('comp-c-nodes').innerText = `Nodes: ${classicalSim.exploredCount}`;
-        document.getElementById('comp-c-path').innerText = `Path Length: ${classicalSim.path.length}`;
-        const cEff = (classicalSim.path.length / classicalSim.exploredCount) * 100;
-        document.getElementById('comp-c-eff').innerText = `Efficiency: ${cEff.toFixed(1)}%`;
+        const cTime = classicalSim.elapsedTime;
+        const qTime = quantumSim.elapsedTime;
+        const cNodes = classicalSim.exploredCount;
+        const qNodes = quantumSim.exploredCount;
+        const cPath = classicalSim.path.length;
+        const qPath = quantumSim.path.length;
+        const cEff = (cPath / cNodes) * 100;
+        const qEff = (qPath / qNodes) * 100;
 
-        document.getElementById('comp-q-diff').innerText = `Difficulty: ${quantumMaze.difficulty.toUpperCase()}`;
-        document.getElementById('comp-q-time').innerText = `Time: ${quantumSim.elapsedTime.toFixed(2)}s`;
-        document.getElementById('comp-q-nodes').innerText = `Nodes: ${quantumSim.exploredCount}`;
-        document.getElementById('comp-q-path').innerText = `Path Length: ${quantumSim.path.length}`;
-        const qEff = (quantumSim.path.length / quantumSim.exploredCount) * 100;
-        document.getElementById('comp-q-eff').innerText = `Efficiency: ${qEff.toFixed(1)}%`;
+        document.getElementById('comp-c-time').innerText = `${cTime.toFixed(2)}s`;
+        document.getElementById('comp-c-nodes').innerText = cNodes;
+        document.getElementById('comp-c-path').innerText = cPath;
+        document.getElementById('comp-c-eff').innerText = `${cEff.toFixed(1)}%`;
+
+        document.getElementById('comp-q-time').innerText = `${qTime.toFixed(2)}s`;
+        document.getElementById('comp-q-nodes').innerText = qNodes;
+        document.getElementById('comp-q-path').innerText = qPath;
+        document.getElementById('comp-q-eff').innerText = `${qEff.toFixed(1)}%`;
 
         const winnerText = document.getElementById('winner-text');
-        if (quantumSim.elapsedTime < classicalSim.elapsedTime) {
-            winnerText.innerText = "Winner: Quantum-Inspired Search";
-            winnerText.style.color = "var(--neon-green)";
-        } else {
-            winnerText.innerText = "Winner: Classical Search";
-            winnerText.style.color = "var(--neon-red)";
-        }
+        const winnerTitle = document.getElementById('winner-title');
 
-        // Show Winner Popup
-        const popup = document.getElementById('winner-popup');
-        const popupName = document.getElementById('popup-winner-name');
-        popupName.innerText = (quantumSim.elapsedTime < classicalSim.elapsedTime) ? "Quantum-Inspired Wins!" : "Classical Wins!";
-        popup.classList.remove('hidden');
+        if (qTime < cTime) {
+            winnerTitle.innerText = "Quantum Advantage Detected";
+            winnerText.innerText = "Quantum-Inspired search outperformed Classical BFS";
+            winnerText.style.color = "var(--neon-green)";
+            document.querySelector('.quantum-res').classList.add('winner-highlight');
+            document.querySelector('.classical-res').classList.remove('winner-highlight');
+        } else {
+            winnerTitle.innerText = "Classical Superiority";
+            winnerText.innerText = "Classical BFS maintained efficiency in this scenario";
+            winnerText.style.color = "var(--neon-red)";
+            document.querySelector('.classical-res').classList.add('winner-highlight');
+            document.querySelector('.quantum-res').classList.remove('winner-highlight');
+        }
     }
 
     function exportAsImage() {
