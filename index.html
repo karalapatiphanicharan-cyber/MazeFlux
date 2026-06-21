@@ -21,11 +21,28 @@
                             <stop offset="0%" style="stop-color:var(--neon-blue);stop-opacity:1" />
                             <stop offset="100%" style="stop-color:var(--neon-purple);stop-opacity:1" />
                         </linearGradient>
+                        <filter id="logo-glow">
+                            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
                     </defs>
-                    <path class="logo-maze-path" d="M20 20 H80 V80 H20 V40 H60 V60 H40" fill="none" stroke="url(#logo-grad)" stroke-width="4" stroke-linecap="round" />
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--neon-blue)" stroke-width="1" stroke-dasharray="5 5" opacity="0.5" />
-                    <circle cx="40" cy="60" r="4" fill="var(--neon-green)">
-                        <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" />
+                    <!-- Outer circuit ring -->
+                    <circle cx="50" cy="50" r="46" fill="none" stroke="var(--neon-blue)" stroke-width="0.5" stroke-dasharray="2 4" opacity="0.3" />
+                    <!-- Hexagonal core -->
+                    <path d="M50 10 L84.6 30 L84.6 70 L50 90 L15.4 70 L15.4 30 Z" fill="none" stroke="url(#logo-grad)" stroke-width="2" filter="url(#logo-glow)">
+                        <animate attributeName="stroke-dasharray" values="0,300;300,0" dur="4s" repeatCount="indefinite" />
+                    </path>
+                    <!-- Central 'M' flux path -->
+                    <path class="logo-maze-path" d="M35 65 V35 L50 50 L65 35 V65" fill="none" stroke="var(--neon-green)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#logo-glow)" />
+                    <!-- Data points -->
+                    <circle cx="35" cy="35" r="2" fill="var(--neon-blue)">
+                        <animate attributeName="r" values="2;4;2" dur="1.5s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="65" cy="35" r="2" fill="var(--neon-blue)">
+                        <animate attributeName="r" values="2;4;2" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
                     </circle>
                 </svg>
                 <div class="title-group">
