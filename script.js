@@ -186,7 +186,11 @@ class ClassicalSearch {
         const [cx, cy] = current;
         this.exploredCount++;
 
-        this.maze.drawCell(cx, cy, 'rgba(255, 49, 49, 0.4)');
+        this.maze.ctx.save();
+        this.maze.ctx.shadowBlur = 5;
+        this.maze.ctx.shadowColor = 'var(--neon-red)';
+        this.maze.drawCell(cx, cy, 'rgba(255, 49, 49, 0.6)');
+        this.maze.ctx.restore();
 
         if (cx === this.maze.cols - 1 && cy === this.maze.rows - 2) {
             this.finished = true;
@@ -284,15 +288,18 @@ class QuantumSearch {
 
         const nextFrontiers = [];
 
+        // Pulse effect for the entire wavefront
+        const pulseSize = (Math.sin(Date.now() / 200) * 5) + 10;
+
         for (const current of this.frontiers) {
             const [cx, cy] = current;
             this.exploredCount++;
 
-            // Use a pulse effect for the search front
-            this.maze.ctx.shadowBlur = 15;
+            this.maze.ctx.save();
+            this.maze.ctx.shadowBlur = pulseSize;
             this.maze.ctx.shadowColor = 'var(--neon-green)';
-            this.maze.drawCell(cx, cy, 'rgba(57, 255, 20, 0.4)');
-            this.maze.ctx.shadowBlur = 0;
+            this.maze.drawCell(cx, cy, 'rgba(57, 255, 20, 0.6)');
+            this.maze.ctx.restore();
 
             this.addParticles(cx, cy);
 
@@ -328,14 +335,14 @@ class QuantumSearch {
     }
 
     addParticles(x, y) {
-        // Reduced particle count for cleaner look, added size and trail
-        for (let i = 0; i < 2; i++) {
+        // Particles now feel more like data-packets or "flux"
+        for (let i = 0; i < 3; i++) {
             this.particles.push({
                 x: (x + 0.5) * this.maze.cellSize,
                 y: (y + 0.5) * this.maze.cellSize,
-                vx: (Math.random() - 0.5) * 1.2,
-                vy: (Math.random() - 0.5) * 1.2,
-                size: Math.random() * 2 + 1,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                size: Math.random() * 3 + 1,
                 life: 1.0,
                 trail: []
             });
@@ -411,14 +418,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const cCanvas = 'classical-canvas';
     const qCanvas = 'quantum-canvas';
 
-    let classicalMaze = new Maze(cCanvas, 'medium');
-    let quantumMaze = new Maze(qCanvas, 'medium');
+    window.classicalMaze = new Maze(cCanvas, 'medium');
+    window.quantumMaze = new Maze(qCanvas, 'medium');
 
-    let classicalSim = null;
-    let quantumSim = null;
+    window.classicalSim = null;
+    window.quantumSim = null;
 
-    let isPaused = false;
+    window.isPaused = false;
     let animationId = null;
+
+    // Chart Synchronization State
+    let latestStats = {
+        classical: { time: 0, nodes: 0, efficiency: 0 },
+        quantum: { time: 0, nodes: 0, efficiency: 0 }
+    };
+    let globalMaxTime = 5;
+    let globalMaxNodes = 100;
+    let lastChartUpdate = 0;
 
     // UI Elements
     const cDiffSelect = document.getElementById('classical-difficulty');
@@ -505,11 +521,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('pause-sim').addEventListener('click', () => {
-        isPaused = true;
-        if (classicalSim) classicalSim.lastUpdateTime = null;
-        if (quantumSim) quantumSim.lastUpdateTime = null;
+        window.isPaused = true;
+        if (window.classicalSim) window.classicalSim.lastUpdateTime = null;
+        if (window.quantumSim) window.quantumSim.lastUpdateTime = null;
     });
-    document.getElementById('resume-sim').addEventListener('click', () => isPaused = false);
+    document.getElementById('resume-sim').addEventListener('click', () => window.isPaused = false);
 
     document.getElementById('compare-results').addEventListener('click', () => {
         showComparison();
@@ -531,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
             e.preventDefault();
-            isPaused = !isPaused;
+            window.isPaused = !window.isPaused;
         } else if (e.code === 'KeyG') {
             document.getElementById('gen-both').click();
         } else if (e.code === 'KeyR') {
@@ -553,7 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cStats.status.innerText = 'Idle';
             cStats.progress.style.width = '0%';
             document.getElementById('classical-chart').innerHTML = '';
-            classicalSim = null;
+            window.classicalSim = null;
+            latestStats.classical = { time: 0, nodes: 0, efficiency: 0 };
         }
         if (side === 'quantum' || side === 'both') {
             qStats.time.innerText = '0.0s';
@@ -563,14 +580,17 @@ document.addEventListener('DOMContentLoaded', () => {
             qStats.status.innerText = 'Idle';
             qStats.progress.style.width = '0%';
             document.getElementById('quantum-chart').innerHTML = '';
-            quantumSim = null;
+            window.quantumSim = null;
+            latestStats.quantum = { time: 0, nodes: 0, efficiency: 0 };
         }
+        globalMaxTime = 5;
+        globalMaxNodes = 100;
     }
 
     function startClassical() {
-        classicalMaze.draw(); // Clear previous marks
-        const totalPathNodes = classicalMaze.grid.flat().filter(cell => cell === 0).length;
-        classicalSim = new ClassicalSearch(classicalMaze, (data) => {
+        window.classicalMaze.draw(); // Clear previous marks
+        const totalPathNodes = window.classicalMaze.grid.flat().filter(cell => cell === 0).length;
+        window.classicalSim = new ClassicalSearch(window.classicalMaze, (data) => {
             cStats.time.innerText = data.time.toFixed(1) + 's';
             cStats.nodes.innerText = data.nodes;
             let efficiency = 0;
@@ -583,18 +603,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             cStats.progress.style.width = Math.min(100, (data.nodes / totalPathNodes) * 100) + '%';
 
-            updateChart('classical-chart', {
+            updateChart('classical', {
                 time: data.time,
                 nodes: data.nodes,
                 efficiency: efficiency
-            }, classicalMaze.difficulty);
+            });
         });
     }
 
     function startQuantum() {
-        quantumMaze.draw(); // Clear previous marks
-        const totalPathNodes = quantumMaze.grid.flat().filter(cell => cell === 0).length;
-        quantumSim = new QuantumSearch(quantumMaze, (data) => {
+        window.quantumMaze.draw(); // Clear previous marks
+        const totalPathNodes = window.quantumMaze.grid.flat().filter(cell => cell === 0).length;
+        window.quantumSim = new QuantumSearch(window.quantumMaze, (data) => {
             qStats.time.innerText = data.time.toFixed(1) + 's';
             qStats.nodes.innerText = data.nodes;
             let efficiency = 0;
@@ -607,15 +627,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             qStats.progress.style.width = Math.min(100, (data.nodes / totalPathNodes) * 100) + '%';
 
-            updateChart('quantum-chart', {
+            updateChart('quantum', {
                 time: data.time,
                 nodes: data.nodes,
                 efficiency: efficiency
-            }, quantumMaze.difficulty);
+            });
         });
     }
 
-    function updateChart(containerId, stats, difficulty) {
+    function updateChart(side, stats) {
+        latestStats[side] = stats;
+
+        // Update global max for unified scaling
+        if (stats.time > globalMaxTime) globalMaxTime = stats.time * 1.1;
+        if (stats.nodes > globalMaxNodes) globalMaxNodes = stats.nodes * 1.1;
+
+        const now = Date.now();
+        // Throttle DOM updates to improve performance during high-speed sim
+        if (now - lastChartUpdate < 100 && !stats.finished) return;
+        lastChartUpdate = now;
+
+        renderChart('classical-chart', latestStats.classical);
+        renderChart('quantum-chart', latestStats.quantum);
+    }
+
+    function renderChart(containerId, stats) {
         const container = document.getElementById(containerId);
         let bars = container.querySelectorAll('.chart-bar');
         let labels = container.querySelectorAll('.chart-value');
@@ -626,36 +662,18 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: 'Eff', value: stats.efficiency || 0, unit: '%' }
         ];
 
-        // Dynamic max scaling
-        const maxTime = Math.max(5, stats.time * 1.2);
-        const maxNodes = Math.max(100, stats.nodes * 1.2);
-        const limits = [maxTime, maxNodes, 100];
+        const limits = [globalMaxTime, globalMaxNodes, 100];
 
         if (bars.length === 0) {
             container.innerHTML = '';
-            metrics.forEach((m, i) => {
+            metrics.forEach((m) => {
                 const barContainer = document.createElement('div');
                 barContainer.className = 'chart-bar-container';
-
-                const label = document.createElement('div');
-                label.className = 'chart-label';
-                label.innerText = m.label;
-
-                const value = document.createElement('div');
-                value.className = 'chart-value';
-                value.innerText = '0';
-
-                const barWrap = document.createElement('div');
-                barWrap.className = 'chart-bar-wrap';
-
-                const bar = document.createElement('div');
-                bar.className = 'chart-bar';
-                bar.style.height = '0%';
-
-                barWrap.appendChild(bar);
-                barContainer.appendChild(label);
-                barContainer.appendChild(barWrap);
-                barContainer.appendChild(value);
+                barContainer.innerHTML = `
+                    <div class="chart-label">${m.label}</div>
+                    <div class="chart-bar-wrap"><div class="chart-bar" style="height: 0%"></div></div>
+                    <div class="chart-value">0</div>
+                `;
                 container.appendChild(barContainer);
             });
             bars = container.querySelectorAll('.chart-bar');
@@ -674,23 +692,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startAnimationLoop() {
         function animate() {
-            if (!isPaused) {
+            if (!window.isPaused) {
                 // Update Timers
-                if (classicalSim && !classicalSim.finished) classicalSim.updateTimer();
-                if (quantumSim && !quantumSim.finished) quantumSim.updateTimer();
+                if (window.classicalSim && !window.classicalSim.finished) window.classicalSim.updateTimer();
+                if (window.quantumSim && !window.quantumSim.finished) window.quantumSim.updateTimer();
 
                 // Smooth Particle Updates (Independent of search speed)
-                if (quantumSim && !quantumSim.finished) {
-                    quantumSim.updateParticles();
+                if (window.quantumSim && !window.quantumSim.finished) {
+                    window.quantumSim.updateParticles();
                 }
 
                 // Classical Speed Control
                 const cSpeed = parseInt(cSpeedRange.value);
                 const cInterval = Math.max(1, Math.floor(100 / cSpeed));
-                if (classicalSim && !classicalSim.finished) {
+                if (window.classicalSim && !window.classicalSim.finished) {
                     cFrameCount++;
                     if (cFrameCount >= cInterval) {
-                        classicalSim.step();
+                        window.classicalSim.step();
                         cFrameCount = 0;
                     }
                 }
@@ -698,16 +716,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Quantum Speed Control
                 const qSpeed = parseInt(qSpeedRange.value);
                 const qInterval = Math.max(1, Math.floor(100 / qSpeed));
-                if (quantumSim && !quantumSim.finished) {
+                if (window.quantumSim && !window.quantumSim.finished) {
                     qFrameCount++;
                     if (qFrameCount >= qInterval) {
-                        quantumSim.step();
+                        window.quantumSim.step();
                         qFrameCount = 0;
                     }
                 }
             }
 
-            if ((classicalSim && !classicalSim.finished) || (quantumSim && !quantumSim.finished)) {
+            if ((window.classicalSim && !window.classicalSim.finished) || (window.quantumSim && !window.quantumSim.finished)) {
                 animationId = requestAnimationFrame(animate);
             } else {
                 animationId = null;
@@ -718,13 +736,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkComparisonAuto() {
-        if (classicalSim && classicalSim.finished && quantumSim && quantumSim.finished) {
+        if (window.classicalSim && window.classicalSim.finished && window.quantumSim && window.quantumSim.finished) {
             showComparison();
         }
     }
 
     function showComparison() {
-        if (!classicalSim || !quantumSim || !classicalSim.finished || !quantumSim.finished) {
+        if (!window.classicalSim || !window.quantumSim || !window.classicalSim.finished || !window.quantumSim.finished) {
             alert("Please run both simulations to completion first.");
             return;
         }
@@ -732,12 +750,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const dashboard = document.getElementById('comparison-dashboard');
         dashboard.classList.remove('hidden');
 
-        const cTime = classicalSim.elapsedTime;
-        const qTime = quantumSim.elapsedTime;
-        const cNodes = classicalSim.exploredCount;
-        const qNodes = quantumSim.exploredCount;
-        const cPath = classicalSim.path.length;
-        const qPath = quantumSim.path.length;
+        const cTime = window.classicalSim.elapsedTime;
+        const qTime = window.quantumSim.elapsedTime;
+        const cNodes = window.classicalSim.exploredCount;
+        const qNodes = window.quantumSim.exploredCount;
+        const cPath = window.classicalSim.path.length;
+        const qPath = window.quantumSim.path.length;
         const cEff = (cPath / cNodes) * 100;
         const qEff = (qPath / qNodes) * 100;
 
@@ -754,22 +772,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const winnerText = document.getElementById('winner-text');
         const winnerTitle = document.getElementById('winner-title');
 
+        const advantage = ((Math.abs(cTime - qTime)) / Math.max(cTime, qTime) * 100).toFixed(1);
         if (qTime < cTime) {
             winnerTitle.innerText = "Quantum Advantage Detected";
-            winnerText.innerText = "Quantum-Inspired search outperformed Classical BFS";
-            winnerText.style.color = "var(--neon-green)";
+            winnerText.innerHTML = `Quantum-Inspired search achieved a <span style="color:var(--neon-green)">${advantage}%</span> speedup over Classical BFS.`;
             document.querySelector('.quantum-res').classList.add('winner-highlight');
             document.querySelector('.classical-res').classList.remove('winner-highlight');
         } else {
             winnerTitle.innerText = "Classical Superiority";
-            winnerText.innerText = "Classical BFS maintained efficiency in this scenario";
-            winnerText.style.color = "var(--neon-red)";
+            winnerText.innerHTML = `Classical BFS maintained efficiency, outperforming Quantum by <span style="color:var(--neon-red)">${advantage}%</span>.`;
             document.querySelector('.classical-res').classList.add('winner-highlight');
             document.querySelector('.quantum-res').classList.remove('winner-highlight');
         }
     }
 
-    function exportAsImage() {
+    window.exportAsImage = function() {
         const offscreen = document.createElement('canvas');
         offscreen.width = 1200;
         offscreen.height = 800;
@@ -823,18 +840,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle Window Resize
     window.addEventListener('resize', () => {
-        classicalMaze.resize();
-        classicalMaze.draw();
-        if (classicalSim) {
-            classicalSim.drawVisited();
-            if (classicalSim.finished) classicalSim.drawPath();
+        window.classicalMaze.resize();
+        window.classicalMaze.draw();
+        if (window.classicalSim) {
+            window.classicalSim.drawVisited();
+            if (window.classicalSim.finished) window.classicalSim.drawPath();
         }
 
-        quantumMaze.resize();
-        quantumMaze.draw();
-        if (quantumSim) {
-            quantumSim.drawVisited();
-            if (quantumSim.finished) quantumSim.drawPath();
+        window.quantumMaze.resize();
+        window.quantumMaze.draw();
+        if (window.quantumSim) {
+            window.quantumSim.drawVisited();
+            if (window.quantumSim.finished) window.quantumSim.drawPath();
         }
     });
 
