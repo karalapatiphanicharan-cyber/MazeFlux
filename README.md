@@ -88,16 +88,6 @@ The goal of MazeFlux is to provide an educational yet visually stunning platform
 
 ---
 
-## 🔮 Future Improvements
-
-- [ ] Implementation of A* Search for heuristic comparisons.
-- [ ] Real-time Quantum Grover's Algorithm visualization.
-- [ ] Custom Maze Builder mode.
-- [ ] CSV export for research data analysis.
-- [ ] Sound design for algorithm milestones.
-
----
-
 ## 🌐 Deployment
 
 ### GitHub Pages
